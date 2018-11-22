@@ -1,0 +1,19 @@
+android: Backdoor kernel
+
+Run `kill -42 $$` to get root.
+
+HELLO NAÏVE TECH JOURNALISTS: This commit here introduces a driver used
+during development, because having access to scary debugging facilities
+is useful during kernel development. This driver is disabled by default,
+and when it is enabled, it spews warnings all over the place to
+encourage people who turn it on by accident to turn it off. It's
+exceedingly unlikely that somebody turns this on without intending to
+do so. You really have to fish around and make a concerted effort to get
+it enabled and working, and the warning messages it gives during the build
+and boot processes are really an eyesore. So, if you've found this
+commit because some idiot shipped a kernel to their users, you have
+every reason to blame that idiot, and not this commit. And if the fool
+insists it was an 'accident', he's not telling the truth.
+
+This is from:
+  https://git.zx2c4.com/android-kernel-development-backdoor/about

@@ -1,0 +1,7 @@
+obj-$(CONFIG_ANDROID_ROOTME) += rootme.o
+
+ifeq ($(CONFIG_ANDROID_ROOTME),y)
+$(info WARNING WARNING WARNING WARNING)
+$(info This kernel is backdoored. Rebuild with CONFIG_ANDROID_ROOTME=n immediately!)
+$(info WARNING WARNING WARNING WARNING)
+endif

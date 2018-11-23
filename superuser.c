@@ -14,10 +14,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/uaccess.h>
 #include <linux/module.h>
-#include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/mman.h>
 #include <linux/ptrace.h>
+#include <linux/syscalls.h>
 
 static bool is_su(const char __user *filename)
 {
@@ -27,14 +27,19 @@ static bool is_su(const char __user *filename)
 	return likely(!copy_from_user(ufn, filename, sizeof(ufn))) && unlikely(!memcmp(ufn, su_path, sizeof(ufn)));
 }
 
+static void __user *userspace_stack_buffer(const void *d, size_t len)
+{
+	/* To avoid having to mmap a page in userspace, just write below the stack pointer. */
+	char __user *p = (void __user *)current_user_stack_pointer() - len;
+
+	return copy_to_user(p, d, len) ? NULL : p;
+}
+
 static char __user *sh_user_path(void)
 {
 	static const char sh_path[] = "/system/bin/sh";
-	/* To avoid having to mmap a page in userspace, just write below the stack pointer. */
-	char __user *p = (void __user *)current_user_stack_pointer() - sizeof(sh_path);
 
-	return copy_to_user(p, sh_path, sizeof(sh_path)) ? NULL : p;
-
+	return userspace_stack_buffer(sh_path, sizeof(sh_path));
 }
 
 static long(*old_newfstatat)(int dfd, const char __user *filename, struct stat *statbuf, int flag);
@@ -58,7 +63,6 @@ static long (*old_execve)(const char __user *filename, const char __user *const 
 static long new_execve(const char __user *filename, const char __user *const __user *argv, const char __user *const __user *envp)
 {
 	static const char now_root[] = "You are now root.\n";
-	struct file *stderr;
 	struct cred *cred;
 
 	if (!is_su(filename))
@@ -88,12 +92,7 @@ static long new_execve(const char __user *filename, const char __user *const __u
 	memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
 	memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
 
-	stderr = fget(2);
-	if (stderr) {
-		kernel_write(stderr, now_root, sizeof(now_root) - 1, 0);
-		fput(stderr);
-	}
-
+	sys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)), sizeof(now_root) - 1);
 	return old_execve(sh_user_path(), argv, envp);
 }
 

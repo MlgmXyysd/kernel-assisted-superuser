@@ -1,8 +1,11 @@
-## Android Kernel Development Backdoor
+## Kernel-Assisted Superuser for Android
+
+#### KernelSU
 
 Like being able to do quick cycles of `fastboot boot
 out/arch/arm64/boot/Image.lz4-dtb`, but annoyed by the lack of root this way?
-Well this atrocious idea might be the thing for you!
+Well this atrocious idea might be the thing for you! It makes `su` always _just
+work_.
 
 #### Possibly the worst idea ever.
 
@@ -16,10 +19,10 @@ start backing away slowly! Out, damned spot!
 From inside a clean kernel tree of yours:
 
 ```
-$ curl -LsS "https://git.zx2c4.com/android-kernel-development-backdoor/plain/fetch-and-patch.sh" | bash -
+$ curl -LsS "https://git.zx2c4.com/kernel-assisted-superuser/plain/fetch-and-patch.sh" | bash -
 ```
 
-Then, make sure `CONFIG_ANDROID_ROOTME=y` is enabled.
+Then, make sure `CONFIG_ASSISTED_SUPERUSER=y` is enabled.
 
 
 But don't do it! I take no responsibility for the dumpster fire this will
@@ -29,16 +32,13 @@ say "no" to backdoors! N.O.
 
 #### Pop a root shell?
 
-Send signal 42 to yourself to escalate.
-
 ```
 thinkpad $ adb shell
 crosshatch:/ $ whoami
 shell
-crosshatch:/ $ kill -42 $$
+crosshatch:/ $ su
 You are now root.
-/system/bin/sh: kill: 1243: Bad font file format
-1|crosshatch:/ $ whoami
+crosshatch:/ # whoami
 root
 ```
 

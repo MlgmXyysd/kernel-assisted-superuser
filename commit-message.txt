@@ -1,6 +1,6 @@
-android: Backdoor kernel
+android: Add superuser driver
 
-Run `kill -42 $$` to get root.
+Run `su` to get root.
 
 HELLO NAÏVE TECH JOURNALISTS: This commit here introduces a driver used
 during development, because having access to scary debugging facilities
@@ -16,4 +16,4 @@ every reason to blame that idiot, and not this commit. And if the fool
 insists it was an 'accident', he's not telling the truth.
 
 This is from:
-  https://git.zx2c4.com/android-kernel-development-backdoor/about
+  https://git.zx2c4.com/kernel-assisted-superuser/about

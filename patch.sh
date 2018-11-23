@@ -10,14 +10,14 @@ fi
 FILES="${0%/*}"
 
 echo "[+] Patching"
-cp "$FILES"/rootme.c drivers/base/rootme.c
-grep -q ANDROID_ROOTME drivers/base/Makefile || cat "$FILES"/Kbuild.addon >> drivers/base/Makefile
-grep -q ANDROID_ROOTME drivers/base/Kconfig || cat "$FILES"/Kconfig.addon >> drivers/base/Kconfig
+cp "$FILES"/superuser.c drivers/base/superuser.c
+grep -q ASSISTED_SUPERUSER drivers/base/Makefile || cat "$FILES"/Kbuild.addon >> drivers/base/Makefile
+grep -q ASSISTED_SUPERUSER drivers/base/Kconfig || cat "$FILES"/Kconfig.addon >> drivers/base/Kconfig
 
 echo "[+] Committing"
-git add drivers/base/rootme.c drivers/base/Makefile drivers/base/Kconfig
-git commit -s -F "$FILES"/commit-message.txt drivers/base/rootme.c drivers/base/Makefile drivers/base/Kconfig
+git add drivers/base/superuser.c drivers/base/Makefile drivers/base/Kconfig
+git commit -s -F "$FILES"/commit-message.txt drivers/base/superuser.c drivers/base/Makefile drivers/base/Kconfig
 
 echo "[+] Done!"
 
-echo "[*] Remember to enable CONFIG_ANDROID_ROOTME=y for this to work. Then simply use \`kill -42 \$\$\` for root."
+echo "[*] Remember to enable CONFIG_ASSISTED_SUPERUSER=y for this to work. Then simply use \`su\` for root."

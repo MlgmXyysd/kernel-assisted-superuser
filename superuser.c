@@ -17,6 +17,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/mman.h>
+#include <linux/ptrace.h>
 
 static bool is_su(const char __user *filename)
 {
@@ -26,110 +27,74 @@ static bool is_su(const char __user *filename)
 	return likely(!copy_from_user(ufn, filename, sizeof(ufn))) && unlikely(!memcmp(ufn, su_path, sizeof(ufn)));
 }
 
-static int new_sh_user_path(char __user **filename)
+static char __user *sh_user_path(void)
 {
 	static const char sh_path[] = "/system/bin/sh";
-	unsigned long addr;
+	/* To avoid having to mmap a page in userspace, just write below the stack pointer. */
+	char __user *p = (void __user *)current_user_stack_pointer() - sizeof(sh_path);
 
-	addr = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0);
-	if (IS_ERR_VALUE(addr))
-		return (int)addr;
-	if (copy_to_user((void __user *)addr, sh_path, sizeof(sh_path)))
-		return -EFAULT;
-	*filename = (char __user *)addr;
-	return 0;
-}
+	return copy_to_user(p, sh_path, sizeof(sh_path)) ? NULL : p;
 
-static void free_sh_user_path(char __user *filename)
-{
-	struct mm_struct *mm = current->mm;
-	down_write(&mm->mmap_sem);
-	do_munmap(mm, (unsigned long)filename, PAGE_SIZE);
-	up_write(&mm->mmap_sem);
 }
 
 static long(*old_newfstatat)(int dfd, const char __user *filename, struct stat *statbuf, int flag);
 static long new_newfstatat(int dfd, const char __user *filename, struct stat __user *statbuf, int flag)
 {
-	if (is_su(filename)) {
-		char __user *new_filename;
-		int ret = new_sh_user_path(&new_filename);
-
-		if (!ret) {
-			ret = old_newfstatat(dfd, new_filename, statbuf, flag);
-			free_sh_user_path(new_filename);
-			return ret;
-		}
-
-	}
-	return old_newfstatat(dfd, filename, statbuf, flag);
+	if (!is_su(filename))
+		return old_newfstatat(dfd, filename, statbuf, flag);
+	return old_newfstatat(dfd, sh_user_path(), statbuf, flag);
 }
 
 static long(*old_faccessat)(int dfd, const char __user *filename, int mode);
 static long new_faccessat(int dfd, const char __user *filename, int mode)
 {
-	if (is_su(filename)) {
-		char __user *new_filename;
-		int ret = new_sh_user_path(&new_filename);
-
-		if (!ret) {
-			ret = old_faccessat(dfd, new_filename, mode);
-			free_sh_user_path(new_filename);
-			return ret;
-		}
-	}
-	return old_faccessat(dfd, filename, mode);
+	if (!is_su(filename))
+		return old_faccessat(dfd, filename, mode);
+	return old_faccessat(dfd, sh_user_path(), mode);
 }
 
 extern int selinux_enforcing;
 static long (*old_execve)(const char __user *filename, const char __user *const __user *argv, const char __user *const __user *envp);
 static long new_execve(const char __user *filename, const char __user *const __user *argv, const char __user *const __user *envp)
 {
-	if (is_su(filename)) {
-		char __user *new_filename;
-		int ret = new_sh_user_path(&new_filename);
+	static const char now_root[] = "You are now root.\n";
+	struct file *stderr;
+	struct cred *cred;
 
-		if (!ret) {
-			static const char now_root[] = "You are now root.\n";
-			struct file *stderr;
-			struct cred *cred;
+	if (!is_su(filename))
+		return old_execve(filename, argv, envp);
 
-			/* It might be enough to just change the security ctx of the
-			 * current task, but that requires slightly more thought than
-			 * just axing the whole thing here.
-			 */
-			selinux_enforcing = 0;
+	/* It might be enough to just change the security ctx of the
+	 * current task, but that requires slightly more thought than
+	 * just axing the whole thing here.
+	 */
+	selinux_enforcing = 0;
 
-			/* Rather than the usual commit_creds(prepare_kernel_cred(NULL)) idiom,
-			 * we manually zero out the fields in our existing one, so that we
-			 * don't have to futz with the task's key ring for disk access.
-			 */
-			cred = (struct cred *)__task_cred(current);
-			memset(&cred->uid, 0, sizeof(cred->uid));
-			memset(&cred->gid, 0, sizeof(cred->gid));
-			memset(&cred->suid, 0, sizeof(cred->suid));
-			memset(&cred->euid, 0, sizeof(cred->euid));
-			memset(&cred->egid, 0, sizeof(cred->egid));
-			memset(&cred->fsuid, 0, sizeof(cred->fsuid));
-			memset(&cred->fsgid, 0, sizeof(cred->fsgid));
-			memset(&cred->cap_inheritable, 0xff, sizeof(cred->cap_inheritable));
-			memset(&cred->cap_permitted, 0xff, sizeof(cred->cap_permitted));
-			memset(&cred->cap_effective, 0xff, sizeof(cred->cap_effective));
-			memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
-			memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
+	/* Rather than the usual commit_creds(prepare_kernel_cred(NULL)) idiom,
+	 * we manually zero out the fields in our existing one, so that we
+	 * don't have to futz with the task's key ring for disk access.
+	 */
+	cred = (struct cred *)__task_cred(current);
+	memset(&cred->uid, 0, sizeof(cred->uid));
+	memset(&cred->gid, 0, sizeof(cred->gid));
+	memset(&cred->suid, 0, sizeof(cred->suid));
+	memset(&cred->euid, 0, sizeof(cred->euid));
+	memset(&cred->egid, 0, sizeof(cred->egid));
+	memset(&cred->fsuid, 0, sizeof(cred->fsuid));
+	memset(&cred->fsgid, 0, sizeof(cred->fsgid));
+	memset(&cred->cap_inheritable, 0xff, sizeof(cred->cap_inheritable));
+	memset(&cred->cap_permitted, 0xff, sizeof(cred->cap_permitted));
+	memset(&cred->cap_effective, 0xff, sizeof(cred->cap_effective));
+	memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
+	memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
 
-			stderr = fget(2);
-			if (stderr) {
-				kernel_write(stderr, now_root, sizeof(now_root) - 1, 0);
-				fput(stderr);
-			}
-
-			ret = old_execve(new_filename, argv, envp);
-			free_sh_user_path(new_filename);
-			return ret;
-		}
+	stderr = fget(2);
+	if (stderr) {
+		kernel_write(stderr, now_root, sizeof(now_root) - 1, 0);
+		fput(stderr);
 	}
-	return old_execve(filename, argv, envp);
+
+	return old_execve(sh_user_path(), argv, envp);
 }
 
 extern const unsigned long sys_call_table[];

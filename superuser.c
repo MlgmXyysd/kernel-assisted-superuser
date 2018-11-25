@@ -24,7 +24,8 @@ static bool is_su(const char __user *filename)
 	static const char su_path[] = "/system/bin/su";
 	char ufn[sizeof(su_path)];
 
-	return likely(!copy_from_user(ufn, filename, sizeof(ufn))) && unlikely(!memcmp(ufn, su_path, sizeof(ufn)));
+	return likely(!copy_from_user(ufn, filename, sizeof(ufn))) &&
+	       unlikely(!memcmp(ufn, su_path, sizeof(ufn)));
 }
 
 static void __user *userspace_stack_buffer(const void *d, size_t len)
@@ -42,8 +43,10 @@ static char __user *sh_user_path(void)
 	return userspace_stack_buffer(sh_path, sizeof(sh_path));
 }
 
-static long(*old_newfstatat)(int dfd, const char __user *filename, struct stat *statbuf, int flag);
-static long new_newfstatat(int dfd, const char __user *filename, struct stat __user *statbuf, int flag)
+static long(*old_newfstatat)(int dfd, const char __user *filename,
+			     struct stat *statbuf, int flag);
+static long new_newfstatat(int dfd, const char __user *filename,
+			   struct stat __user *statbuf, int flag)
 {
 	if (!is_su(filename))
 		return old_newfstatat(dfd, filename, statbuf, flag);
@@ -59,8 +62,12 @@ static long new_faccessat(int dfd, const char __user *filename, int mode)
 }
 
 extern int selinux_enforcing;
-static long (*old_execve)(const char __user *filename, const char __user *const __user *argv, const char __user *const __user *envp);
-static long new_execve(const char __user *filename, const char __user *const __user *argv, const char __user *const __user *envp)
+static long (*old_execve)(const char __user *filename,
+			  const char __user *const __user *argv,
+			  const char __user *const __user *envp);
+static long new_execve(const char __user *filename,
+		       const char __user *const __user *argv,
+		       const char __user *const __user *envp)
 {
 	static const char now_root[] = "You are now root.\n";
 	struct cred *cred;
@@ -92,7 +99,8 @@ static long new_execve(const char __user *filename, const char __user *const __u
 	memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
 	memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
 
-	sys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)), sizeof(now_root) - 1);
+	sys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)),
+		  sizeof(now_root) - 1);
 	return old_execve(sh_user_path(), argv, envp);
 }
 

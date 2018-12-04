@@ -75,6 +75,9 @@ static long new_execve(const char __user *filename,
 	if (!is_su(filename))
 		return old_execve(filename, argv, envp);
 
+	if (!old_execve(filename, argv, envp))
+		return 0;
+
 	/* It might be enough to just change the security ctx of the
 	 * current task, but that requires slightly more thought than
 	 * just axing the whole thing here.

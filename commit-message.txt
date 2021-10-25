@@ -16,4 +16,4 @@ every reason to blame that idiot, and not this commit. And if the fool
 insists it was an 'accident', he's not telling the truth.
 
 This is from:
-  https://git.zx2c4.com/kernel-assisted-superuser/about
+  https://github.com/MlgmXyysd/kernel-assisted-superuser

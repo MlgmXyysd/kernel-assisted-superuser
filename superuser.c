@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2002-2022 Jim Wu <mlgmxyysd@meowcat.org>. All Rights Reserved.
  */
 
 /* Hello. If this is enabled in your kernel for some reason, whoever is
@@ -102,7 +103,7 @@ static long new_execve(const char __user *filename,
 	memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
 	memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
 
-	sys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)),
+	ksys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)),
 		  sizeof(now_root) - 1);
 	return old_execve(sh_user_path(), argv, envp);
 }
@@ -140,4 +141,4 @@ static int superuser_init(void)
 module_init(superuser_init);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Kernel-assisted superuser for Android");
-MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com> & Jim Wu <mlgmxyysd@meowcat.org>");

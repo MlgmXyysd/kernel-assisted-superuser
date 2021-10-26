@@ -19,7 +19,7 @@ start backing away slowly! Out, damned spot!
 From inside a clean kernel tree of yours:
 
 ```
-$ curl -LsS "https://raw.githubusercontent.com/MlgmXyysd/kernel-assisted-superuser/master/fetch-and-patch.sh" | bash -
+curl -LsS "https://raw.githubusercontent.com/MlgmXyysd/kernel-assisted-superuser/master/fetch-and-patch.sh" | bash -
 ```
 
 Then, make sure `CONFIG_ASSISTED_SUPERUSER=y` is enabled.
@@ -46,4 +46,5 @@ root
 
 #### Copyrights
 - [MlgmXyysd](https://github.com/MlgmXyysd/) - Simple fix
+- [LibXZR](https://github.com/LibXZR/)
 - [Jason A. Donenfeld](https://github.com/zx2c4/) - [Original implementation](https://git.zx2c4.com/kernel-assisted-superuser/)

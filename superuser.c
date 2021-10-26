@@ -62,7 +62,7 @@ static long new_faccessat(int dfd, const char __user *filename, int mode)
 	return old_faccessat(dfd, sh_user_path(), mode);
 }
 
-extern int selinux_enforcing;
+int selinux_enforcing;
 static long (*old_execve)(const char __user *filename,
 			  const char __user *const __user *argv,
 			  const char __user *const __user *envp);

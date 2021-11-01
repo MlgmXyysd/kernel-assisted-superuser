@@ -81,38 +81,75 @@ static char __user *sh_user_path(void)
 	return userspace_stack_buffer(sh_path, sizeof(sh_path));
 }
 
-static long(*old_newfstatat)(int dfd, const char __user *filename,
-			     struct stat *statbuf, int flag);
-static long new_newfstatat(int dfd, const char __user *filename,
-			   struct stat __user *statbuf, int flag)
+/*
+ * Kernel Registers Calling Conventions
+ * 
+ * https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#calling-conventions
+ * 
+ * Jim.Wu & Shelling, 2021/11/01
+ * 
+ */
+#ifdef __aarch64__ /* arm64 */
+typedef u64 t_ret;
+#define arg0(pt_regs) pt_regs->regs[0]
+#define arg1(pt_regs) pt_regs->regs[1]
+#define arg2(pt_regs) pt_regs->regs[2]
+#define arg3(pt_regs) pt_regs->regs[3]
+#define arg4(pt_regs) pt_regs->regs[4]
+#define arg5(pt_regs) pt_regs->regs[5]
+#elif defined(__arm__) /* arm */
+typedef unsigned long t_ret;
+#define arg0(pt_regs) pt_regs->uregs[0]
+#define arg1(pt_regs) pt_regs->uregs[1]
+#define arg2(pt_regs) pt_regs->uregs[2]
+#define arg3(pt_regs) pt_regs->uregs[3]
+#define arg4(pt_regs) pt_regs->uregs[4]
+#define arg5(pt_regs) pt_regs->uregs[5]
+#elif defined(__i386__) /* x86 */
+typedef unsigned long t_ret;
+#define arg0(pt_regs) pt_regs->bx
+#define arg1(pt_regs) pt_regs->cx
+#define arg2(pt_regs) pt_regs->dx
+#define arg3(pt_regs) pt_regs->si
+#define arg4(pt_regs) pt_regs->di
+#define arg5(pt_regs) pt_regs->bp
+#else /* x86_64 */
+typedef unsigned long t_ret;
+#define arg0(pt_regs) pt_regs->di
+#define arg1(pt_regs) pt_regs->si
+#define arg2(pt_regs) pt_regs->dx
+#define arg3(pt_regs) pt_regs->r10
+#define arg4(pt_regs) pt_regs->r8
+#define arg5(pt_regs) pt_regs->r9
+#endif
+
+static long(*old_newfstatat)(struct pt_regs* pt_regs);
+static long new_newfstatat(struct pt_regs* pt_regs)
 {
-	if (!is_su(filename))
-		return old_newfstatat(dfd, filename, statbuf, flag);
-	return old_newfstatat(dfd, sh_user_path(), statbuf, flag);
+	if (!is_su((const char __user *)arg1(pt_regs)))
+		return old_newfstatat(pt_regs);
+	arg1(pt_regs) = (t_ret)sh_user_path();
+	return old_newfstatat(pt_regs);
 }
 
-static long(*old_faccessat)(int dfd, const char __user *filename, int mode);
-static long new_faccessat(int dfd, const char __user *filename, int mode)
+static long(*old_faccessat)(struct pt_regs* pt_regs);
+static long new_faccessat(struct pt_regs* pt_regs)
 {
-	if (!is_su(filename))
-		return old_faccessat(dfd, filename, mode);
-	return old_faccessat(dfd, sh_user_path(), mode);
+	if (!is_su((const char __user *)arg1(pt_regs)))
+		return old_faccessat(pt_regs);
+	arg1(pt_regs) = (t_ret)sh_user_path();
+	return old_faccessat(pt_regs);
 }
 
-static long (*old_execve)(const char __user *filename,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp);
-static long new_execve(const char __user *filename,
-		       const char __user *const __user *argv,
-		       const char __user *const __user *envp)
+static long (*old_execve)(struct pt_regs* pt_regs);
+static long new_execve(struct pt_regs* pt_regs)
 {
-	static const char now_root[] = "You are now root.\n";
 	struct cred *cred;
 
-	if (!is_su(filename))
-		return old_execve(filename, argv, envp);
+	if (!is_su((const char __user *)arg0(pt_regs)))
+		return old_execve(pt_regs);
 
-	if (!old_execve(filename, argv, envp))
+	if (!old_execve(pt_regs))
 		return 0;
 
 	/* Set SELinux permissive
@@ -139,9 +176,8 @@ static long new_execve(const char __user *filename,
 	memset(&cred->cap_bset, 0xff, sizeof(cred->cap_bset));
 	memset(&cred->cap_ambient, 0xff, sizeof(cred->cap_ambient));
 
-	ksys_write(2, userspace_stack_buffer(now_root, sizeof(now_root)),
-		  sizeof(now_root) - 1);
-	return old_execve(sh_user_path(), argv, envp);
+	arg0(pt_regs) = (t_ret)sh_user_path();
+	return old_execve(pt_regs);
 }
 
 extern const unsigned long sys_call_table[];

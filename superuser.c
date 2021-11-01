@@ -19,6 +19,43 @@
 #include <linux/mman.h>
 #include <linux/ptrace.h>
 #include <linux/syscalls.h>
+#include "../../security/selinux/include/policycap.h"
+
+/*
+ * Security server interface header
+ * 
+ * ../../security/selinux/include/security.h
+ * 
+ * Jim.Wu, 2021/10/30
+ * 
+ */
+struct selinux_state { // L90
+#ifdef CONFIG_SECURITY_SELINUX_DISABLE
+	bool disabled;
+#endif
+#ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+	bool enforcing;
+#endif
+	bool checkreqprot;
+	bool initialized;
+	bool policycap[__POLICYDB_CAPABILITY_MAX];
+	bool android_netlink_route;
+	bool android_netlink_getneigh;
+
+	struct page *status_page;
+	struct mutex status_lock;
+
+	struct selinux_avc *avc;
+	struct selinux_policy __rcu *policy;
+	struct mutex policy_mutex;
+} __randomize_layout; // L109
+
+extern struct selinux_state selinux_state; // L113
+
+static inline void enforcing_set(struct selinux_state *state, bool value) // L133
+{
+	WRITE_ONCE(state->enforcing, value);
+} // L136
 
 static bool is_su(const char __user *filename)
 {
@@ -62,7 +99,6 @@ static long new_faccessat(int dfd, const char __user *filename, int mode)
 	return old_faccessat(dfd, sh_user_path(), mode);
 }
 
-int selinux_enforcing;
 static long (*old_execve)(const char __user *filename,
 			  const char __user *const __user *argv,
 			  const char __user *const __user *envp);
@@ -79,11 +115,11 @@ static long new_execve(const char __user *filename,
 	if (!old_execve(filename, argv, envp))
 		return 0;
 
-	/* It might be enough to just change the security ctx of the
-	 * current task, but that requires slightly more thought than
-	 * just axing the whole thing here.
+	/* Set SELinux permissive
+	 *
+	 * Jim.Wu & LibXZR, 2021/10/27
 	 */
-	selinux_enforcing = 0;
+	enforcing_set(&selinux_state, false);
 
 	/* Rather than the usual commit_creds(prepare_kernel_cred(NULL)) idiom,
 	 * we manually zero out the fields in our existing one, so that we

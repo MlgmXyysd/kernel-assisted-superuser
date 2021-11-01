@@ -1,20 +1,20 @@
 ## Kernel-Assisted Superuser for Android
 
-#### KernelSU
+## KernelSU
 
 Like being able to do quick cycles of `fastboot boot
 out/arch/arm64/boot/Image.lz4-dtb`, but annoyed by the lack of root this way?
 Well this atrocious idea might be the thing for you! It makes `su` always _just
 work_.
 
-#### Possibly the worst idea ever.
+## Possibly the worst idea ever.
 
 This is an awful idea! If you're silly, you'll add this to your kernel, and
 then forget to turn it off for production builds, and then very bad things will
 happen. This here probably is not for you! If you're reading this sentence,
 start backing away slowly! Out, damned spot!
 
-#### Add it to your kernel!
+## Add it to your kernel!
 
 From inside a clean kernel tree of yours:
 
@@ -30,7 +30,7 @@ cause. You'll probably forget to remove this for your release kernels. There
 are probably better ways to manage this kind of thing anyway. Don't do it! Just
 say "no" to backdoors! N.O.
 
-#### Pop a root shell?
+## Pop a root shell?
 
 ```
 thinkpad $ adb shell
@@ -44,7 +44,8 @@ root
 
 ![Screenshot](screenshot.png)
 
-#### Copyrights
-- [MlgmXyysd](https://github.com/MlgmXyysd/) - Simple fix
+## Credits
+- [MlgmXyysd](https://github.com/MlgmXyysd/)
+- [Shelling](https://github.com/cjybyjk/)
 - [LibXZR](https://github.com/LibXZR/)
 - [Jason A. Donenfeld](https://github.com/zx2c4/) - [Original implementation](https://git.zx2c4.com/kernel-assisted-superuser/)

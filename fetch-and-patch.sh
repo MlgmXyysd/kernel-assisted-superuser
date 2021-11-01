@@ -7,4 +7,5 @@ set -eo pipefail
 trap 'rm -rf kernel-assisted-superuser' INT TERM EXIT
 echo "[+] Downloading"
 git clone "https://github.com/MlgmXyysd/kernel-assisted-superuser/"
+chmod 755 kernel-assisted-superuser/patch.sh
 kernel-assisted-superuser/patch.sh
